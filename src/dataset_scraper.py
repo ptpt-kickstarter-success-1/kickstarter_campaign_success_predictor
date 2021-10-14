@@ -99,7 +99,3 @@ def dataframe_generator():
         # to make pandas happy.
         inp = io.StringIO(csv)
         yield pd.read_csv(inp)
-
-
-for df in dataframe_generator():
-    pass

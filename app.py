@@ -2,70 +2,72 @@ from flask import Flask, jsonify, request
 from flask.templating import render_template
 import pandas as pd
 import joblib
+import numpy as np
+import tensorflow as tf
+from tensorflow import keras
 
 
 app = Flask(__name__)
 
-# class for Kickstarter objects with attributes corresponding to features in Matt Rager's wrangle function
-# these might still change depending on what features we actually end up using
-# note that these no longer match the features used by the baseline regression, so that predict function won't work
+# class for Kickstarter objects with attributes now corresponding to encoded feature set used by neural network model
+# note that these no longer match the features used by the baseline regression, so that predict function does nothing
 
 
 class Kickstarter:
-    def __init__(self, id, backers_count, blurb, country, currency,
-       currency_trailing_code, current_currency, disable_communication,
-       fx_rate, goal, is_starrable, name, pledged, source_url,
-       spotlight, staff_pick, state, static_usd_rate, urls,
-       usd_exchange_rate, usd_pledged, pre_campaign, planned_campaign,
-       actual_campaign, post_campaign, year_created, month_created,
-       day_created, weekday_created, year_deadline, month_deadline,
-       day_deadline, weekday_deadline, year_launched, month_launched,
-       day_launched, weekday_launched, year_state_changed,
-       month_state_changed, day_state_changed, weekday_state_changed,
-       average_pledge_amount, percent_pledged):
-        self.id = id
-        self.backers_count = backers_count
-        self.blurb = blurb
-        self.country = country
-        self.currency = currency
-        self.currency_trailing_code = currency_trailing_code
-        self.current_currency = current_currency
-        self.disable_communication = disable_communication
-        self.fx_rate = fx_rate
-        self.goal = goal
-        self.is_starrable = is_starrable
-        self.name = name
-        self.pledged = pledged  # might be leaky
-        self.source_url = source_url
-        self.spotlight = spotlight
-        self.staff_pick = staff_pick
-        self.static_usd_rate = static_usd_rate
-        self.urls = urls
-        self.usd_exchange_rate = usd_exchange_rate
-        self.usd_pledged = usd_pledged  # might be leaky
-        self.pre_campaign = pre_campaign
-        self.planned_campaign = planned_campaign
-        self.actual_campaign = actual_campaign
-        self.post_campaign = post_campaign  # might be leaky
-        self.year_created = year_created
-        self.month_created = month_created
-        self.day_created = day_created
-        self.weekday_deadline = weekday_deadline
-        self.year_launched = year_launched
-        self.month_launched = month_launched
-        self.day_launched = day_launched
-        self.weekday_launched = weekday_launched
-        self.year_state_changed = year_state_changed  # state change may be leaky in conjunction with other features?
-        self.month_state_changed = month_state_changed  # state change may be leaky in conjunction with other features?
-        self.day_state_changed = day_state_changed  # state change may be leaky in conjunction with other features?
-        self.weekday_state_changed = weekday_state_changed  # state change may be leaky?
-        self.average_pledge_amount = average_pledge_amount
-        self.percent_pledged = percent_pledged  # might be leaky if duration is expired? Sub 100 after deadline = fail
+    def __init__(self, df):  # __init__ now shortened to take df input (which is what we'll be using anyway) directly
+        feature = []
+        for x in range(len(df.columns)):
+            feature.append(df.iloc[0][x])
 
+        self.id = feature[0]
+        self.backers_count = feature[1]
+        self.country = feature[2]
+        self.currency = feature[3]
+        self.currency_trailing_code = feature[4]
+        self.current_currency = feature[5]
+        self.disable_communication = feature[6]
+        self.fx_rate = feature[7]
+        self.goal = feature[8]
+        self.is_starrable = feature[9]
+        self.staff_pick = feature[10]
+        self.static_usd_rate = feature[11]
+        self.usd_exchange_rate = feature[12]
+        self.usd_pledged = feature[13]  # might be leaky
+        self.pre_campaign = feature[14]
+        self.planned_campaign = feature[15]
+        self.actual_campaign = feature[16]
+        self.post_campaign = feature[17]  # might be leaky
+        self.year_created = feature[18]
+        self.month_created = feature[19]
+        self.day_created = feature[20]
+        self.weekday_created = feature[21]
+        self.year_deadline = feature[22]
+        self.month_deadline = feature[23]
+        self.day_deadline = feature[24]
+        self.weekday_deadline = feature[25]
+        self.year_launched = feature[26]
+        self.month_launched = feature[27]
+        self.day_launched = feature[28]
+        self.weekday_launched = feature[29]
+        self.year_state_changed = feature[30]  # state change may be leaky in conjunction with other features?
+        self.month_state_changed = feature[31]  # state change may be leaky in conjunction with other features?
+        self.day_state_changed = feature[32]  # state change may be leaky in conjunction with other features?
+        self.weekday_state_changed = feature[33]  # state change may be leaky?
+        self.average_pledge_amount = feature[34]
+        self.blurb_vector_length = feature[35]
+        self.name_vector_length = feature[36]
+        self.features = df  # features stored redundantly here for ease of calling in barebones flask app
 
-    def predict_success(self):
+    def nn_predict(self):  # predictor function using loaded neural network
+        loaded_model = keras.models.load_model("ks_NN_model.h5")
+        if loaded_model.predict(self.features) > .5:
+            return 'success'
+        else:
+            return 'failure'
+
+    def predict_success(self):  # predictor based on the baseline logistic regression model, now nonfunctional
         temp = pd.DataFrame(
-                columns=['goal', 'disable_communication', 'country', 'currency',
+                columns=['id', 'disable_communication', 'country', 'currency',
                          'currency_trailing_code', 'staff_pick', 'backers_count',
                          'static_usd_rate', 'category', 'name_len', 'name_len_clean',
                          'blurb_len', 'blurb_len_clean', 'deadline_weekday',
@@ -84,22 +86,103 @@ class Kickstarter:
         return y_pred
 
 
+
+
+@app.route('/')
+def index():
+    return 'Predict success of kickstarter campaigns in the 10 item test sample with /predict[n]/ routes'
+
+
 @app.route('/inputs/', methods=['GET', 'POST'])
 def process_input():
     return 'this is where user input is taken and stored as a Kickstarter object'
 
 
-# predict route currently has a test object lifted from the validation set of the baseline model
+# predict routes currently use campaigns lifted from the included test set of the neural network
 # once we have front end input we'll generate Kickstarters from that
 
 
-@app.route('/predict/', methods=['GET', 'POST'])
-def output_prediction():
-    test_object = Kickstarter(3200, False, 'CA', 'CAD', True, False, 74, 0.818860, 'Plays', 4.0, 4.0, 21.0, 21.0, 'Tuesday', 'Monday', 'Tuesday', 5, 26, 2015, 21, 4, 6, 2015, 21, 4, 21, 2015, 16)
-    prediction = test_object.predict_success()
+@app.route('/predict1/', methods=['GET', 'POST'])
+def output_prediction1():
+    sample = test_set.iloc[0:1]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict2/', methods=['GET', 'POST'])
+def output_prediction2():
+    sample = test_set.iloc[1:2]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict3/', methods=['GET', 'POST'])
+def output_prediction3():
+    sample = test_set.iloc[2:3]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict4/', methods=['GET', 'POST'])
+def output_prediction4():
+    sample = test_set.iloc[3:4]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict5/', methods=['GET', 'POST'])
+def output_prediction5():
+    sample = test_set.iloc[4:5]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict6/', methods=['GET', 'POST'])
+def output_prediction6():
+    sample = test_set.iloc[5:6]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict7/', methods=['GET', 'POST'])
+def output_prediction7():
+    sample = test_set.iloc[6:7]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict8/', methods=['GET', 'POST'])
+def output_prediction8():
+    sample = test_set.iloc[7:8]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict9/', methods=['GET', 'POST'])
+def output_prediction9():
+    sample = test_set.iloc[8:9]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
+    return prediction
+
+
+@app.route('/predict10/', methods=['GET', 'POST'])
+def output_prediction10():
+    sample = test_set.iloc[9:10]
+    test_object = Kickstarter(sample)
+    prediction = test_object.nn_predict()
     return prediction
 
 
 if __name__ == '__main__':
-    ks_baseline_pipeline = joblib.load('ks_baseline.joblib')
+    #  model = keras.models.load_model("ks_NN_model")
+    test_set = pd.read_csv('ks_test_set.csv', index_col=0)
     app.run()
